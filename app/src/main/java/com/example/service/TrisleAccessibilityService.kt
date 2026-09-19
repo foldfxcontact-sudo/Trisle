@@ -48,36 +48,51 @@ class TrisleAccessibilityService : AccessibilityService() {
     calibrationRepo = CalibrationRepository(this)
     licenseRepo = LicenseRepository(this)
 
-    // Collect activities & profiles to keep accessibility overlay updated
+    // Collect activities, exclusions & profiles to keep accessibility overlay updated
     serviceScope.launch {
       combine(
         TrisleNotificationListener.detectedActivities,
         calibrationRepo.profile,
-        licenseRepo.licenseState
-      ) { activities, profile, license ->
-        val resolvedActivities = if (activities.isNotEmpty()) {
-          activities
+        licenseRepo.licenseState,
+        _foregroundPackage,
+        calibrationRepo.excludedApps
+      ) { activities, profile, license, fgPkg, excludedSet ->
+        val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val isExcluded = (fgPkg.isNotBlank() && excludedSet.contains(fgPkg)) ||
+            (profile.hideInLandscape && isLandscape)
+
+        if (isExcluded) {
+          null
         } else {
-          listOf(
-            IslandActivity(
-              id = "acc_idle",
-              type = ActivityType.MEDIA,
-              tier = ActivityTier.TIER_3_CONTINUOUS,
-              title = "Trisle Cutout Active",
-              subtitle = "Accessibility Overlay",
-              isPlaying = true
+          val resolvedActivities = if (activities.isNotEmpty()) {
+            activities
+          } else {
+            listOf(
+              IslandActivity(
+                id = "acc_idle",
+                type = ActivityType.MEDIA,
+                tier = ActivityTier.TIER_3_CONTINUOUS,
+                title = "Trisle Cutout Active",
+                subtitle = "Accessibility Overlay",
+                isPlaying = true
+              )
             )
+          }
+          val layout = priorityEngine.resolveLayout(resolvedActivities, license.tier)
+          Triple(layout, profile, license.tier)
+        }
+      }.collect { result ->
+        if (result == null) {
+          overlayController?.detachOverlay()
+        } else {
+          val (layout, profile, tier) = result
+          overlayController?.attachOverlay(
+            isAccessibility = true,
+            layoutState = layout,
+            profile = profile,
+            tier = tier
           )
         }
-        val layout = priorityEngine.resolveLayout(resolvedActivities, license.tier)
-        Triple(layout, profile, license.tier)
-      }.collect { (layout, profile, tier) ->
-        overlayController?.attachOverlay(
-          isAccessibility = true,
-          layoutState = layout,
-          profile = profile,
-          tier = tier
-        )
       }
     }
   }

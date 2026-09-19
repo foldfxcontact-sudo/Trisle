@@ -54,37 +54,52 @@ class TrisleOverlayService : Service() {
     licenseRepo = LicenseRepository(this)
     _isOverlayActive.value = true
 
-    // Combine notifications, calibration profile, and license tier to update overlay in real time
+    // Combine notifications, calibration profile, license tier, and exclusions to update overlay in real time
     serviceScope.launch {
       combine(
         TrisleNotificationListener.detectedActivities,
         calibrationRepo.profile,
-        licenseRepo.licenseState
-      ) { activities, profile, license ->
-        val resolvedActivities = if (activities.isNotEmpty()) {
-          activities
+        licenseRepo.licenseState,
+        TrisleAccessibilityService.foregroundPackage,
+        calibrationRepo.excludedApps
+      ) { activities, profile, license, fgPkg, excludedSet ->
+        val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val isExcluded = (fgPkg.isNotBlank() && excludedSet.contains(fgPkg)) ||
+            (profile.hideInLandscape && isLandscape)
+
+        if (isExcluded) {
+          null
         } else {
-          // Default preview activity when no active notification exists
-          listOf(
-            IslandActivity(
-              id = "idle_media",
-              type = ActivityType.MEDIA,
-              tier = ActivityTier.TIER_3_CONTINUOUS,
-              title = "Trisle Active",
-              subtitle = "Listening for background sessions",
-              isPlaying = true
+          val resolvedActivities = if (activities.isNotEmpty()) {
+            activities
+          } else {
+            // Default preview activity when no active notification exists
+            listOf(
+              IslandActivity(
+                id = "idle_media",
+                type = ActivityType.MEDIA,
+                tier = ActivityTier.TIER_3_CONTINUOUS,
+                title = "Trisle Active",
+                subtitle = "Listening for background sessions",
+                isPlaying = true
+              )
             )
+          }
+          val layout = priorityEngine.resolveLayout(resolvedActivities, license.tier)
+          Triple(layout, profile, license.tier)
+        }
+      }.collect { result ->
+        if (result == null) {
+          overlayController.detachOverlay()
+        } else {
+          val (layout, profile, tier) = result
+          overlayController.attachOverlay(
+            isAccessibility = false,
+            layoutState = layout,
+            profile = profile,
+            tier = tier
           )
         }
-        val layout = priorityEngine.resolveLayout(resolvedActivities, license.tier)
-        Triple(layout, profile, license.tier)
-      }.collect { (layout, profile, tier) ->
-        overlayController.attachOverlay(
-          isAccessibility = false,
-          layoutState = layout,
-          profile = profile,
-          tier = tier
-        )
       }
     }
   }

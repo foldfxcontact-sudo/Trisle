@@ -29,17 +29,7 @@ class TrisleOverlayController(private val context: Context) {
       return
     }
 
-    val view = TrisleOverlayView(context).apply {
-      // Tap on the overlay brings Trisle to the foreground
-      setOnClickListener {
-        try {
-          val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-          }
-          context.startActivity(intent)
-        } catch (_: Exception) {}
-      }
-    }
+    val view = TrisleOverlayView(context)
     view.updateState(layoutState, profile, tier)
 
     val windowType = if (isAccessibility) {

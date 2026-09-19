@@ -24,7 +24,13 @@ data class IslandActivity(
   val progress: Float = 0f,
   val isPlaying: Boolean = false,
   val timestamp: Long = System.currentTimeMillis(),
-  val appPackage: String = ""
+  val appPackage: String = "",
+  val contentIntent: android.app.PendingIntent? = null,
+  val notificationCount: Int = 1,
+  val chronometerBase: Long = 0L,
+  val isCountDown: Boolean = false,
+  val playbackPositionMs: Long = 0L,
+  val playbackDurationMs: Long = 0L
 )
 
 enum class CutoutPosition {

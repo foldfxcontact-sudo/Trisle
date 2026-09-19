@@ -77,4 +77,35 @@ class ExampleRobolectricTest {
     repo.deactivateLicense()
     assertEquals(LicenseTier.FREE, repo.licenseState.value.tier)
   }
+
+  @Test
+  fun `excluded apps toggling works correctly`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val repo = com.example.data.CalibrationRepository(context)
+
+    val pkg = "com.test.camera"
+    val initiallyExcluded = repo.excludedApps.value.contains(pkg)
+    repo.toggleAppExclusion(pkg)
+    assertEquals(!initiallyExcluded, repo.excludedApps.value.contains(pkg))
+
+    repo.toggleAppExclusion(pkg)
+    assertEquals(initiallyExcluded, repo.excludedApps.value.contains(pkg))
+  }
+
+  @Test
+  fun `island activity supports chronometer and notification badge`() {
+    val activity = IslandActivity(
+      id = "test_timer",
+      type = ActivityType.TIMER,
+      tier = ActivityTier.TIER_2_TIME_SENSITIVE,
+      title = "Timer",
+      chronometerBase = 1000L,
+      isCountDown = true,
+      notificationCount = 3
+    )
+
+    assertEquals(3, activity.notificationCount)
+    assertTrue(activity.isCountDown)
+    assertEquals(1000L, activity.chronometerBase)
+  }
 }
