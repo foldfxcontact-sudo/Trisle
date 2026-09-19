@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Left Satellite Bubble (e.g. Timer / Ephemeral) -->
+    <path
+        android:fillColor="#222328"
+        android:strokeColor="#4A4D55"
+        android:strokeWidth="1.2"
+        android:pathData="M26,54m-8,0a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
+    <!-- Left bubble inner dot -->
+    <path
+        android:fillColor="#E0E2EC"
+        android:pathData="M26,54m-2.5,0a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0" />
+
+    <!-- Center Anchor Notch Pill (Width 40, Height 22, rx 11) -->
+    <path
+        android:fillColor="#15161A"
+        android:strokeColor="#52555F"
+        android:strokeWidth="1.4"
+        android:pathData="M43,43 h22 a11,11 0 0,1 11,11 a11,11 0 0,1 -11,11 h-22 a11,11 0 0,1 -11,-11 a11,11 0 0,1 11,-11 z" />
+
+    <!-- Center Camera Cutout Dot -->
+    <path
+        android:fillColor="#0D0E11"
+        android:strokeColor="#383A42"
+        android:strokeWidth="0.8"
+        android:pathData="M44,54m-4,0a4,4 0 1,0 8,0a4,4 0 1,0 -8,0" />
+
+    <!-- Mini Audio / Activity Visualizer bars in the pill -->
+    <path
+        android:fillColor="#F0F1F5"
+        android:pathData="M56,51h2.2v6h-2.2z M60,48h2.2v12h-2.2z M64,52h2.2v4h-2.2z" />
+
+    <!-- Right Satellite Bubble (e.g. Ping / Alert) -->
+    <path
+        android:fillColor="#222328"
+        android:strokeColor="#4A4D55"
+        android:strokeWidth="1.2"
+        android:pathData="M82,54m-8,0a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
+    <!-- Right bubble mini badge -->
+    <path
+        android:fillColor="#D1D4DF"
+        android:pathData="M82,51h2v6h-2z" />
+</vector>

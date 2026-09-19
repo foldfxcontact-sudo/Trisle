@@ -1,0 +1,6 @@
+{
+  "name": "Trisle",
+  "description": "Privacy-first Android camera cutout personalization utility with three-island dynamic multi-tasking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

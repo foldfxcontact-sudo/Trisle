@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Trisle</string>
+    <string name="accessibility_service_description">Trisle uses the AccessibilityService API solely to render an activity overlay directly around your camera cutout and detect foreground apps for the exclusion list. Trisle never inspects, captures, or transmits personal data, keystrokes, or screen content.</string>
+    <string name="accessibility_service_label">Trisle Cutout Overlay Service</string>
+    <string name="notification_listener_label">Trisle Notification Reader</string>
+</resources>
