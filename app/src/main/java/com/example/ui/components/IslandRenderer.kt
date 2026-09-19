@@ -2,10 +2,15 @@ package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -30,19 +35,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,6 +68,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +83,7 @@ import com.example.model.IslandActivity
 import com.example.model.LicenseTier
 import com.example.ui.theme.CarbonBackground
 import com.example.ui.theme.GraphiteSurface
+import com.example.ui.theme.GraphiteSurfaceVariant
 import com.example.ui.theme.ObsidianBlack
 import com.example.ui.theme.PlatinumWhite
 import com.example.ui.theme.SteelBorder
@@ -85,9 +100,13 @@ fun TrisleIslandContainer(
   licenseTier: LicenseTier,
   onAnchorClick: () -> Unit = {},
   onTogglePlayback: () -> Unit = {},
-  onSatelliteDismiss: (String) -> Unit = {}
+  onSatelliteClick: (IslandActivity) -> Unit = {},
+  onSatelliteDismiss: (String) -> Unit = {},
+  onAdjustTimer: (Int) -> Unit = {},
+  onDismissCall: () -> Unit = {}
 ) {
   var isExpanded by remember { mutableStateOf(false) }
+  val density = LocalDensity.current
 
   // Cutout alignment
   val horizontalAlignment = when (profile.position) {
@@ -99,21 +118,25 @@ fun TrisleIslandContainer(
   Column(
     modifier = Modifier
       .fillMaxWidth()
-      .padding(horizontal = 16.dp),
+      .padding(horizontal = 8.dp),
     horizontalAlignment = horizontalAlignment
   ) {
     // Dynamic 3-Island Row: [Left Satellite] <-> [Center Anchor Notch Pill] <-> [Right Satellite]
     Box(
       modifier = Modifier
         .wrapContentSize()
-        .offset { IntOffset(profile.offsetX.toInt(), profile.offsetY.toInt()) },
+        .offset {
+          IntOffset(
+            x = with(density) { profile.offsetX.dp.roundToPx() },
+            y = with(density) { profile.offsetY.dp.roundToPx() }
+          )
+        },
       contentAlignment = Alignment.Center
     ) {
       Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
       ) {
-
         // 1. Left Satellite Bubble (Detached node)
         AnimatedVisibility(
           visible = layoutState.leftSatellite != null && licenseTier == LicenseTier.PRO_LIFETIME,
@@ -123,7 +146,7 @@ fun TrisleIslandContainer(
           layoutState.leftSatellite?.let { leftActivity ->
             SatelliteBubble(
               activity = leftActivity,
-              onClick = { onAnchorClick() },
+              onClick = { onSatelliteClick(leftActivity) },
               onFlickDismiss = { onSatelliteDismiss(leftActivity.id) }
             )
           }
@@ -134,7 +157,10 @@ fun TrisleIslandContainer(
           activity = layoutState.anchorActivity,
           profile = profile,
           isExpanded = isExpanded,
-          onTap = { isExpanded = !isExpanded },
+          onTap = {
+            isExpanded = !isExpanded
+            onAnchorClick()
+          },
           onLongPress = { isExpanded = true }
         )
 
@@ -147,7 +173,7 @@ fun TrisleIslandContainer(
           layoutState.rightSatellite?.let { rightActivity ->
             SatelliteBubble(
               activity = rightActivity,
-              onClick = { onAnchorClick() },
+              onClick = { onSatelliteClick(rightActivity) },
               onFlickDismiss = { onSatelliteDismiss(rightActivity.id) }
             )
           }
@@ -161,11 +187,13 @@ fun TrisleIslandContainer(
       enter = fadeIn() + scaleIn(initialScale = 0.95f),
       exit = fadeOut() + scaleOut(targetScale = 0.95f)
     ) {
-      Spacer(modifier = Modifier.height(12.dp))
+      Spacer(modifier = Modifier.height(14.dp))
       ExpandedDashboardCard(
         activity = layoutState.anchorActivity,
         licenseTier = licenseTier,
         onTogglePlayback = onTogglePlayback,
+        onAdjustTimer = onAdjustTimer,
+        onDismissCall = onDismissCall,
         onClose = { isExpanded = false }
       )
     }
@@ -181,7 +209,7 @@ private fun AnchorPill(
   onLongPress: () -> Unit
 ) {
   val animatedWidth by animateDpAsState(
-    targetValue = if (activity != null) maxOf(profile.width.dp, 160.dp) else profile.width.dp,
+    targetValue = if (activity != null) maxOf(profile.width.dp, 164.dp) else profile.width.dp,
     animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
     label = "pill_width"
   )
@@ -198,7 +226,7 @@ private fun AnchorPill(
       .height(animatedHeight)
       .clip(RoundedCornerShape(profile.cornerRadius.dp))
       .background(ObsidianBlack)
-      .border(1.dp, SteelBorder, RoundedCornerShape(profile.cornerRadius.dp))
+      .border(1.2.dp, SteelBorder, RoundedCornerShape(profile.cornerRadius.dp))
       .pointerInput(Unit) {
         detectTapGestures(
           onTap = { onTap() },
@@ -212,7 +240,7 @@ private fun AnchorPill(
       // Idle Cutout Pill with simulated camera lens ring
       Box(
         modifier = Modifier
-          .size(12.dp)
+          .size(13.dp)
           .clip(CircleShape)
           .background(Color(0xFF0F1014))
           .border(0.8.dp, Color(0xFF2C2E35), CircleShape)
@@ -228,15 +256,15 @@ private fun AnchorPill(
         Icon(
           imageVector = icon,
           contentDescription = activity.type.name,
-          tint = TitaniumSilver,
+          tint = if (activity.type == ActivityType.CALL) Color(0xFF4ADE80) else TitaniumSilver,
           modifier = Modifier.size(15.dp)
         )
 
-        // Center Title / Subtitle
+        // Center Title
         Text(
           text = activity.title,
           color = TextHighContrast,
-          fontSize = 12.sp,
+          fontSize = 11.5.sp,
           fontWeight = FontWeight.Medium,
           fontFamily = FontFamily.Monospace,
           maxLines = 1,
@@ -251,11 +279,18 @@ private fun AnchorPill(
           MiniEqualizer()
         } else if (activity.type == ActivityType.TIMER) {
           Text(
-            text = "REC",
-            color = Color(0xFF4ADE80),
+            text = "ACTIVE",
+            color = Color(0xFFFBBF24),
             fontSize = 9.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold
+          )
+        } else if (activity.type == ActivityType.CALL) {
+          Box(
+            modifier = Modifier
+              .size(7.dp)
+              .clip(CircleShape)
+              .background(Color(0xFF4ADE80))
           )
         } else {
           Box(
@@ -289,7 +324,7 @@ private fun SatelliteBubble(
     Icon(
       imageVector = icon,
       contentDescription = activity.title,
-      tint = TitaniumSilver,
+      tint = if (activity.type == ActivityType.CALL) Color(0xFF4ADE80) else TitaniumSilver,
       modifier = Modifier.size(16.dp)
     )
   }
@@ -297,13 +332,42 @@ private fun SatelliteBubble(
 
 @Composable
 private fun MiniEqualizer() {
+  val infiniteTransition = rememberInfiniteTransition(label = "eq")
+  val h1 by infiniteTransition.animateFloat(
+    initialValue = 4f,
+    targetValue = 12f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(400, easing = FastOutSlowInEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "h1"
+  )
+  val h2 by infiniteTransition.animateFloat(
+    initialValue = 10f,
+    targetValue = 5f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(350, easing = FastOutSlowInEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "h2"
+  )
+  val h3 by infiniteTransition.animateFloat(
+    initialValue = 6f,
+    targetValue = 14f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(450, easing = FastOutSlowInEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "h3"
+  )
+
   Row(
     horizontalArrangement = Arrangement.spacedBy(2.dp),
     verticalAlignment = Alignment.CenterVertically
   ) {
-    Box(modifier = Modifier.size(width = 2.dp, height = 7.dp).background(PlatinumWhite, RoundedCornerShape(1.dp)))
-    Box(modifier = Modifier.size(width = 2.dp, height = 12.dp).background(PlatinumWhite, RoundedCornerShape(1.dp)))
-    Box(modifier = Modifier.size(width = 2.dp, height = 5.dp).background(PlatinumWhite, RoundedCornerShape(1.dp)))
+    Box(modifier = Modifier.size(width = 2.dp, height = h1.dp).background(PlatinumWhite, RoundedCornerShape(1.dp)))
+    Box(modifier = Modifier.size(width = 2.dp, height = h2.dp).background(PlatinumWhite, RoundedCornerShape(1.dp)))
+    Box(modifier = Modifier.size(width = 2.dp, height = h3.dp).background(PlatinumWhite, RoundedCornerShape(1.dp)))
   }
 }
 
@@ -312,6 +376,8 @@ private fun ExpandedDashboardCard(
   activity: IslandActivity?,
   licenseTier: LicenseTier,
   onTogglePlayback: () -> Unit = {},
+  onAdjustTimer: (Int) -> Unit = {},
+  onDismissCall: () -> Unit = {},
   onClose: () -> Unit
 ) {
   Box(
@@ -319,7 +385,7 @@ private fun ExpandedDashboardCard(
       .fillMaxWidth()
       .clip(RoundedCornerShape(20.dp))
       .background(CarbonBackground)
-      .border(1.dp, SteelBorder, RoundedCornerShape(20.dp))
+      .border(1.2.dp, SteelBorder, RoundedCornerShape(20.dp))
       .padding(16.dp)
   ) {
     Column {
@@ -329,10 +395,10 @@ private fun ExpandedDashboardCard(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
           Box(
             modifier = Modifier
-              .size(28.dp)
+              .size(32.dp)
               .clip(CircleShape)
               .background(GraphiteSurface)
               .border(0.8.dp, SteelBorderSubtle, CircleShape),
@@ -341,8 +407,8 @@ private fun ExpandedDashboardCard(
             Icon(
               imageVector = getActivityIcon(activity?.type ?: ActivityType.MEDIA),
               contentDescription = null,
-              tint = PlatinumWhite,
-              modifier = Modifier.size(14.dp)
+              tint = if (activity?.type == ActivityType.CALL) Color(0xFF4ADE80) else PlatinumWhite,
+              modifier = Modifier.size(16.dp)
             )
           }
           Spacer(modifier = Modifier.width(10.dp))
@@ -351,12 +417,16 @@ private fun ExpandedDashboardCard(
               text = activity?.title ?: "No Active Activity",
               color = TextHighContrast,
               fontSize = 14.sp,
-              fontWeight = FontWeight.SemiBold
+              fontWeight = FontWeight.SemiBold,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
             )
             Text(
-              text = activity?.subtitle ?: "Tap activities below to trigger",
+              text = activity?.subtitle ?: "Tap activities below to simulate",
               color = TextMediumContrast,
-              fontSize = 11.sp
+              fontSize = 11.sp,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
             )
           }
         }
@@ -373,56 +443,128 @@ private fun ExpandedDashboardCard(
 
       Spacer(modifier = Modifier.height(14.dp))
 
-      // Content specific to activity
-      if (activity?.type == ActivityType.MEDIA) {
-        LinearProgressIndicator(
-          progress = { activity.progress },
-          modifier = Modifier
-            .fillMaxWidth()
-            .height(3.dp)
-            .clip(RoundedCornerShape(2.dp)),
-          color = PlatinumWhite,
-          trackColor = SteelBorderSubtle
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.Center,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Default.SkipPrevious, "Previous", tint = TitaniumSilver)
-          }
-          Spacer(modifier = Modifier.width(12.dp))
-          Box(
+      // Activity-Specific Interactive Controls
+      when (activity?.type) {
+        ActivityType.MEDIA -> {
+          // Seekbar
+          LinearProgressIndicator(
+            progress = { activity.progress },
             modifier = Modifier
-              .size(42.dp)
-              .clip(CircleShape)
-              .background(GraphiteSurface)
-              .border(1.dp, SteelBorder, CircleShape)
-              .clickable { onTogglePlayback() },
-            contentAlignment = Alignment.Center
+              .fillMaxWidth()
+              .height(4.dp)
+              .clip(RoundedCornerShape(2.dp)),
+            color = PlatinumWhite,
+            trackColor = SteelBorderSubtle
+          )
+          Spacer(modifier = Modifier.height(14.dp))
+
+          // Media Controls
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
           ) {
-            Icon(
-              imageVector = if (activity?.isPlaying == true) Icons.Default.Pause else Icons.Default.PlayArrow,
-              contentDescription = "Play/Pause",
-              tint = PlatinumWhite,
-              modifier = Modifier.size(20.dp)
-            )
-          }
-          Spacer(modifier = Modifier.width(12.dp))
-          IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Default.SkipNext, "Next", tint = TitaniumSilver)
+            IconButton(onClick = {}, modifier = Modifier.size(38.dp)) {
+              Icon(Icons.Default.SkipPrevious, "Previous", tint = TitaniumSilver)
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Box(
+              modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(GraphiteSurface)
+                .border(1.2.dp, SteelBorder, CircleShape)
+                .clickable { onTogglePlayback() },
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                imageVector = if (activity.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = "Play/Pause",
+                tint = PlatinumWhite,
+                modifier = Modifier.size(22.dp)
+              )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            IconButton(onClick = {}, modifier = Modifier.size(38.dp)) {
+              Icon(Icons.Default.SkipNext, "Next", tint = TitaniumSilver)
+            }
           }
         }
-      } else {
-        // Quick Reply or Action
-        Text(
-          text = "Priority Tier: ${activity?.tier?.label ?: "Standard"}",
-          fontSize = 11.sp,
-          color = TextMuted,
-          fontFamily = FontFamily.Monospace
-        )
+
+        ActivityType.TIMER -> {
+          // Timer Quick Adjust Controls
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              text = "TIMER RUNNING",
+              color = Color(0xFFFBBF24),
+              fontSize = 11.sp,
+              fontFamily = FontFamily.Monospace,
+              fontWeight = FontWeight.Bold
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+              OutlinedButton(
+                onClick = { onAdjustTimer(-30) },
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(30.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = TitaniumSilver)
+              ) {
+                Text("-30s", fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+              }
+              OutlinedButton(
+                onClick = { onAdjustTimer(60) },
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(30.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = PlatinumWhite)
+              ) {
+                Text("+1m", fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+              }
+            }
+          }
+        }
+
+        ActivityType.CALL -> {
+          // Call Actions
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+          ) {
+            Button(
+              onClick = { onDismissCall() },
+              modifier = Modifier.weight(1f),
+              shape = RoundedCornerShape(10.dp),
+              colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E1A1A), contentColor = Color(0xFFF87171))
+            ) {
+              Icon(Icons.Default.CallEnd, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(6.dp))
+              Text("Decline", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+            }
+
+            Button(
+              onClick = { onClose() },
+              modifier = Modifier.weight(1f),
+              shape = RoundedCornerShape(10.dp),
+              colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF142918), contentColor = Color(0xFF4ADE80))
+            ) {
+              Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(6.dp))
+              Text("Answer", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+            }
+          }
+        }
+
+        else -> {
+          Text(
+            text = "Priority Tier: ${activity?.tier?.label ?: "Standard"}",
+            fontSize = 11.sp,
+            color = TextMuted,
+            fontFamily = FontFamily.Monospace
+          )
+        }
       }
     }
   }
@@ -433,7 +575,7 @@ private fun getActivityIcon(type: ActivityType): ImageVector {
     ActivityType.MEDIA -> Icons.Default.MusicNote
     ActivityType.TIMER -> Icons.Default.Timer
     ActivityType.CALL -> Icons.Default.Call
+    ActivityType.NAVIGATION -> Icons.Default.Navigation
     ActivityType.MESSAGE -> Icons.Default.ChatBubble
-    ActivityType.NAVIGATION -> Icons.Default.GraphicEq
   }
 }

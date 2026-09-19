@@ -72,6 +72,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
       )
     )
   )
+  val simulatedActivities: StateFlow<List<IslandActivity>> = _simulatedActivities.asStateFlow()
 
   // Layout state combining current activities and license tier (Free vs Pro)
   val layoutState: StateFlow<IslandLayoutState> = combine(
@@ -124,6 +125,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
   fun dismissSatellite(activityId: String) {
     val current = _simulatedActivities.value.toMutableList()
     current.removeAll { it.id == activityId }
+    _simulatedActivities.value = current
+  }
+
+  fun promoteActivityToAnchor(activity: IslandActivity) {
+    val current = _simulatedActivities.value.toMutableList()
+    val index = current.indexOfFirst { it.id == activity.id }
+    if (index > 0) {
+      val item = current.removeAt(index)
+      current.add(0, item.copy(timestamp = System.currentTimeMillis()))
+      _simulatedActivities.value = current
+    }
+  }
+
+  fun adjustTimer(deltaSeconds: Int) {
+    val current = _simulatedActivities.value.toMutableList()
+    val timerIndex = current.indexOfFirst { it.type == ActivityType.TIMER }
+    if (timerIndex >= 0) {
+      val item = current[timerIndex]
+      val newProg = (item.progress - (deltaSeconds / 300f)).coerceIn(0.05f, 0.95f)
+      current[timerIndex] = item.copy(progress = newProg)
+      _simulatedActivities.value = current
+    }
+  }
+
+  fun dismissCall() {
+    val current = _simulatedActivities.value.toMutableList()
+    current.removeAll { it.type == ActivityType.CALL }
     _simulatedActivities.value = current
   }
 

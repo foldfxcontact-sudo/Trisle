@@ -1,10 +1,12 @@
 package com.example.overlay
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
 import android.view.WindowManager
+import com.example.MainActivity
 import com.example.engine.IslandLayoutState
 import com.example.model.CutoutPosition
 import com.example.model.CutoutProfile
@@ -27,7 +29,17 @@ class TrisleOverlayController(private val context: Context) {
       return
     }
 
-    val view = TrisleOverlayView(context)
+    val view = TrisleOverlayView(context).apply {
+      // Tap on the overlay brings Trisle to the foreground
+      setOnClickListener {
+        try {
+          val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+          }
+          context.startActivity(intent)
+        } catch (_: Exception) {}
+      }
+    }
     view.updateState(layoutState, profile, tier)
 
     val windowType = if (isAccessibility) {
@@ -47,6 +59,8 @@ class TrisleOverlayController(private val context: Context) {
       CutoutPosition.RIGHT -> Gravity.TOP or Gravity.END
     }
 
+    val density = context.resources.displayMetrics.density
+
     val params = WindowManager.LayoutParams(
       WindowManager.LayoutParams.WRAP_CONTENT,
       WindowManager.LayoutParams.WRAP_CONTENT,
@@ -57,8 +71,12 @@ class TrisleOverlayController(private val context: Context) {
       PixelFormat.TRANSLUCENT
     ).apply {
       gravity = gravityAlignment
-      y = profile.offsetY.toInt()
-      x = profile.offsetX.toInt()
+      y = (profile.offsetY * density).toInt()
+      x = (profile.offsetX * density).toInt()
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+      }
     }
 
     try {
@@ -83,9 +101,15 @@ class TrisleOverlayController(private val context: Context) {
         CutoutPosition.LEFT -> Gravity.TOP or Gravity.START
         CutoutPosition.RIGHT -> Gravity.TOP or Gravity.END
       }
+      val density = context.resources.displayMetrics.density
       params.gravity = gravityAlignment
-      params.y = profile.offsetY.toInt()
-      params.x = profile.offsetX.toInt()
+      params.y = (profile.offsetY * density).toInt()
+      params.x = (profile.offsetX * density).toInt()
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+      }
+
       try {
         windowManager.updateViewLayout(view, params)
       } catch (_: Exception) {}

@@ -24,14 +24,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CropLandscape
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -44,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -102,14 +105,58 @@ fun TrisleApp(viewModel: MainViewModel) {
   val isAccessibilityActive by viewModel.isAccessibilityActive.collectAsState()
   val isNotificationActive by viewModel.isNotificationActive.collectAsState()
   val isSystemOverlayActive by viewModel.isSystemOverlayActive.collectAsState()
+  val activeActivities by viewModel.simulatedActivities.collectAsState()
   val excludedApps by viewModel.excludedApps.collectAsState()
   val isActivating by viewModel.isActivating.collectAsState()
   val statusMessage by viewModel.activationStatusMessage.collectAsState()
-  val context = androidx.compose.ui.platform.LocalContext.current
+  val context = LocalContext.current
 
   Scaffold(
     modifier = Modifier.fillMaxSize(),
-    containerColor = ObsidianBlack
+    containerColor = ObsidianBlack,
+    bottomBar = {
+      NavigationBar(
+        containerColor = GraphiteSurface,
+        contentColor = PlatinumWhite,
+        tonalElevation = 0.dp,
+        modifier = Modifier
+          .border(0.8.dp, SteelBorderSubtle, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+          .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+      ) {
+        TrisleTab.values().forEachIndexed { index, tab ->
+          val isSelected = selectedTabIndex == index
+          NavigationBarItem(
+            selected = isSelected,
+            onClick = { selectedTabIndex = index },
+            modifier = Modifier.testTag("nav_${tab.name.lowercase()}"),
+            icon = {
+              Icon(
+                imageVector = tab.icon,
+                contentDescription = tab.title,
+                tint = if (isSelected) PlatinumWhite else TextMuted,
+                modifier = Modifier.size(20.dp)
+              )
+            },
+            label = {
+              Text(
+                text = tab.title,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) PlatinumWhite else TextMuted
+              )
+            },
+            colors = NavigationBarItemDefaults.colors(
+              selectedIconColor = PlatinumWhite,
+              selectedTextColor = PlatinumWhite,
+              indicatorColor = CarbonBackground,
+              unselectedIconColor = TextMuted,
+              unselectedTextColor = TextMuted
+            )
+          )
+        }
+      }
+    }
   ) { innerPadding ->
     Column(
       modifier = Modifier
@@ -120,62 +167,18 @@ fun TrisleApp(viewModel: MainViewModel) {
       TrisleHeader(
         isPro = licenseState.tier == LicenseTier.PRO_LIFETIME,
         isAccessibilityActive = isAccessibilityActive,
-        isNotificationActive = isNotificationActive
+        isNotificationActive = isNotificationActive,
+        isOverlayActive = isSystemOverlayActive
       )
 
-      // 2. Minimalist Tab Bar
-      ScrollableTabRow(
-        selectedTabIndex = selectedTabIndex,
-        containerColor = ObsidianBlack,
-        contentColor = PlatinumWhite,
-        edgePadding = 16.dp,
-        divider = {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(1.dp)
-              .background(SteelBorderSubtle)
-          )
-        }
-      ) {
-        TrisleTab.values().forEachIndexed { index, tab ->
-          val selected = selectedTabIndex == index
-          Tab(
-            selected = selected,
-            onClick = { selectedTabIndex = index },
-            modifier = Modifier.testTag("tab_${tab.name.lowercase()}"),
-            text = {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-              ) {
-                Icon(
-                  imageVector = tab.icon,
-                  contentDescription = null,
-                  modifier = Modifier.size(14.dp),
-                  tint = if (selected) PlatinumWhite else TextMuted
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                  text = tab.title,
-                  color = if (selected) PlatinumWhite else TextMuted,
-                  fontSize = 11.sp,
-                  fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                  fontFamily = FontFamily.Monospace
-                )
-              }
-            }
-          )
-        }
-      }
-
-      // 3. Tab Body
+      // 2. Tab Screen Body
       Box(modifier = Modifier.fillMaxSize()) {
         when (TrisleTab.values()[selectedTabIndex]) {
           TrisleTab.SANDBOX -> SandboxScreen(
             layoutState = layoutState,
             cutoutProfile = cutoutProfile,
             licenseState = licenseState,
+            activeActivities = activeActivities,
             isSystemOverlayActive = isSystemOverlayActive,
             onToggleSystemOverlay = { viewModel.toggleSystemOverlay(context) },
             onToggleMusic = { viewModel.toggleSimulatedMusic() },
@@ -183,7 +186,10 @@ fun TrisleApp(viewModel: MainViewModel) {
             onToggleCall = { viewModel.toggleSimulatedCall() },
             onToggleMessage = { viewModel.toggleSimulatedMessage() },
             onTogglePlayback = { viewModel.toggleCurrentMediaPlayback() },
+            onSatelliteClick = { viewModel.promoteActivityToAnchor(it) },
             onDismissSatellite = { viewModel.dismissSatellite(it) },
+            onAdjustTimer = { viewModel.adjustTimer(it) },
+            onDismissCall = { viewModel.dismissCall() },
             onClearAll = { viewModel.clearAllActivities() },
             onResetDefault = { viewModel.resetDefaultActivities() },
             onNavigateToPro = { selectedTabIndex = TrisleTab.PRO.ordinal }
@@ -227,101 +233,58 @@ fun TrisleApp(viewModel: MainViewModel) {
 }
 
 @Composable
-private fun TrisleHeader(
+fun TrisleHeader(
   isPro: Boolean,
   isAccessibilityActive: Boolean,
-  isNotificationActive: Boolean
+  isNotificationActive: Boolean,
+  isOverlayActive: Boolean
 ) {
+  val isAnyActive = isAccessibilityActive || isOverlayActive
+
   Row(
     modifier = Modifier
       .fillMaxWidth()
-      .background(ObsidianBlack)
+      .statusBarsPadding()
       .padding(horizontal = 16.dp, vertical = 12.dp),
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically
   ) {
+    // Brand & Live Pulse Dot
     Row(verticalAlignment = Alignment.CenterVertically) {
-      // Small geometric 3-island brand badge
       Box(
         modifier = Modifier
-          .size(24.dp)
-          .clip(RoundedCornerShape(6.dp))
-          .background(GraphiteSurface)
-          .border(0.8.dp, SteelBorder, RoundedCornerShape(6.dp)),
-        contentAlignment = Alignment.Center
-      ) {
-        Row(
-          horizontalArrangement = Arrangement.spacedBy(1.5.dp),
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Box(modifier = Modifier.size(2.dp).background(TitaniumSilver, CircleShape))
-          Box(modifier = Modifier.size(width = 6.dp, height = 3.dp).background(PlatinumWhite, RoundedCornerShape(1.dp)))
-          Box(modifier = Modifier.size(2.dp).background(TitaniumSilver, CircleShape))
-        }
-      }
-
-      Spacer(modifier = Modifier.width(10.dp))
-
-      Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Text(
-            text = "TRISLE",
-            color = TextHighContrast,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 2.sp
-          )
-          Spacer(modifier = Modifier.width(6.dp))
-          Box(
-            modifier = Modifier
-              .clip(RoundedCornerShape(4.dp))
-              .background(if (isPro) Color(0xFF21252B) else CarbonBackground)
-              .border(0.6.dp, if (isPro) PlatinumWhite else SteelBorder, RoundedCornerShape(4.dp))
-              .padding(horizontal = 5.dp, vertical = 1.dp)
-          ) {
-            Text(
-              text = if (isPro) "PRO" else "FREE",
-              color = if (isPro) PlatinumWhite else TextMuted,
-              fontSize = 8.sp,
-              fontFamily = FontFamily.Monospace,
-              fontWeight = FontWeight.Bold
-            )
-          }
-        }
-        Text(
-          text = "Three islands. One cutout.",
-          color = TextMuted,
-          fontSize = 10.sp,
-          fontFamily = FontFamily.Monospace
-        )
-      }
+          .size(8.dp)
+          .clip(CircleShape)
+          .background(if (isAnyActive) Color(0xFF4ADE80) else TitaniumSilver)
+      )
+      Spacer(modifier = Modifier.width(8.dp))
+      Text(
+        text = "TRISLE",
+        color = TextHighContrast,
+        fontSize = 15.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = FontFamily.Monospace,
+        letterSpacing = 2.sp
+      )
     }
 
-    // System Service Health Pill
-    Row(
-      modifier = Modifier
-        .clip(RoundedCornerShape(20.dp))
-        .background(GraphiteSurface)
-        .border(0.8.dp, SteelBorderSubtle, RoundedCornerShape(20.dp))
-        .padding(horizontal = 8.dp, vertical = 4.dp),
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      val isReady = isAccessibilityActive && isNotificationActive
+    // Status / Pro Badge
+    Row(verticalAlignment = Alignment.CenterVertically) {
       Box(
         modifier = Modifier
-          .size(6.dp)
-          .clip(CircleShape)
-          .background(if (isReady) Color(0xFF4ADE80) else Color(0xFFFBBF24))
-      )
-      Spacer(modifier = Modifier.width(6.dp))
-      Text(
-        text = if (isReady) "READY" else "CONFIG",
-        color = TitaniumSilver,
-        fontSize = 9.sp,
-        fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.SemiBold
-      )
+          .clip(RoundedCornerShape(6.dp))
+          .background(CarbonBackground)
+          .border(0.8.dp, SteelBorder, RoundedCornerShape(6.dp))
+          .padding(horizontal = 8.dp, vertical = 4.dp)
+      ) {
+        Text(
+          text = if (isPro) "PRO LIFETIME" else "FREE TIER",
+          color = if (isPro) PlatinumWhite else TextMuted,
+          fontSize = 10.sp,
+          fontFamily = FontFamily.Monospace,
+          fontWeight = FontWeight.SemiBold
+        )
+      }
     }
   }
 }

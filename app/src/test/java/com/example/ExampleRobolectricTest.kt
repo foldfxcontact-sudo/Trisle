@@ -43,7 +43,7 @@ class ExampleRobolectricTest {
     assertEquals("Call", layout.anchorActivity?.title)
     assertNull(layout.leftSatellite)
     assertNull(layout.rightSatellite)
-    assertEquals(1, layout.visibleNodeCount)
+    assertEquals(3, layout.totalActiveCount)
   }
 
   @Test
@@ -62,7 +62,7 @@ class ExampleRobolectricTest {
     assertEquals("Timer", layout.leftSatellite?.title)
     assertNotNull(layout.rightSatellite)
     assertEquals("Music", layout.rightSatellite?.title)
-    assertEquals(3, layout.visibleNodeCount)
+    assertEquals(3, layout.totalActiveCount)
   }
 
   @Test
